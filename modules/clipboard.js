@@ -98,7 +98,8 @@ class Clipboard extends Module {
       this.quill.updateContents(delta, Quill.sources.USER);
       // range.length contributes to delta.length()
       this.quill.setSelection(delta.length() - range.length, Quill.sources.SILENT);
-      this.quill.selection.scrollIntoView();
+      // Popvex, not helpful
+      //this.quill.selection.scrollIntoView();
     };
     let intercept = (delta, callback) => {
       this.container.focus();

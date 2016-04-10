@@ -181,6 +181,9 @@ class Selection {
   }
 
   scrollIntoView() {
+    // Popvex, this is not helpful, ever
+    return;
+
     if (this.lastRange == null) return;
     let bounds = this.getBounds(this.lastRange.index, this.lastRange.length);
     if (this.root.offsetHeight < bounds.bottom) {
