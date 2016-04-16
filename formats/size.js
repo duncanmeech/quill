@@ -9,15 +9,16 @@ let SizeClass = new Parchment.Attributor.Class('size', 'ql-size', {
     'xPX',        // 10px
     'xiPX',       // 11px
     'xiiPX',      // 12px
+    'xiiiPX',     // 13px
     'xivPX',      // 14px
     'xviPX',      // 16px
     'xxPX',       // 20px
     'xxivPX',     // 24px
     'xxviiiPX',   // 28px
     'xxxiiPX',    // 32px
-    'xviiilPX',   // 48px
+    'xlviiiPX',   // 48px
     'lxxiiPX',    // 72px
-    'xvicPX',     // 96px
+    'xcviPX',     // 96px
   ]
 });
 let SizeStyle = new Parchment.Attributor.Style('size', 'font-size', {
