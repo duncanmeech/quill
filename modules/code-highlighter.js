@@ -1,14 +1,29 @@
 import Parchment from 'parchment';
-import Quill from 'quill/core';
-import Module from 'quill/core/module';
-import CodeBlock from 'quill/formats/code';
+import Quill from '../core/quill';
+import Module from '../core/module';
+import CodeBlock from '../formats/code';
 
 
 class HighlightCodeBlock extends CodeBlock {
+  static create(value) {
+    let domNode = super.create(value);
+    if (typeof value === 'string') {
+      domNode.dataset.language = value;
+    } else {
+      domNode.dataset.language = HighlightCodeBlock.DEFAULT_LANGUAGE;
+    }
+    domNode.classList.add(domNode.dataset.language);
+    return domNode;
+  }
+
+  static formats(domNode) {
+    return domNode.dataset.language || HighlightCodeBlock.DEFAULT_LANGUAGE;
+  }
+
   highlight() {
     if (this.cachedHTML !== this.domNode.innerHTML) {
       let text = this.domNode.textContent;
-      if (text.trim().length > 0) {
+      if (text.trim().length > 0 || this.cachedHTML == null) {
         this.domNode.textContent = this.domNode.textContent;
         hljs.highlightBlock(this.domNode);
         this.attach();
@@ -17,6 +32,7 @@ class HighlightCodeBlock extends CodeBlock {
     }
   }
 }
+HighlightCodeBlock.DEFAULT_LANGUAGE = 'javascript';
 
 
 let CodeToken = new Parchment.Attributor.Class('token', 'hljs', {
@@ -43,6 +59,7 @@ class CodeHighlighter extends Module {
     this.quill.scroll.descendants(HighlightCodeBlock).forEach(function(code) {
       code.highlight();
     });
+    this.quill.update(Quill.sources.SILENT);
     if (range != null) {
       this.quill.setSelection(range, Quill.sources.SILENT);
     }

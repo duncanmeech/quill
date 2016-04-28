@@ -1,8 +1,9 @@
 import Delta from 'rich-text/lib/delta';
 import Parchment from 'parchment';
-import Quill from 'quill/core';
-import logger from 'quill/core/logger';
-import Module from 'quill/core/module';
+import Quill from '../core/quill';
+import logger from '../core/logger';
+import Module from '../core/module';
+import { BlockEmbed } from '../blots/block';
 
 let debug = logger('quill:clipboard');
 
@@ -142,6 +143,7 @@ function deltaEndsWith(delta, text) {
 }
 
 function isLine(node) {
+  if (node.childNodes.length === 0) return false;   // Exclude embed blocks
   let style = computeStyle(node);
   return ['block', 'list-item'].indexOf(style.display) > -1;
 }
@@ -184,14 +186,21 @@ function matchBlot(node, delta) {
     let embed = {};
     embed[match.blotName] = match.value(node);
     delta.insert(embed, match.formats(node));
+    if (match.prototype instanceof BlockEmbed) {
+      let newlineDelta = matchAttributor(node, new Delta().insert('\n'));
+      delta = delta.concat(newlineDelta);
+    }
   } else if (typeof match.formats === 'function') {
-    delta = delta.compose(new Delta().retain(delta.length(), match.formats(node)));
+    let formats = {};
+    formats[match.blotName] = match.formats(node);
+    delta = delta.compose(new Delta().retain(delta.length(), formats));
   }
   return delta;
 }
 
 function matchNewline(node, delta) {
-  if (isLine(node) && !deltaEndsWith(delta, '\n')) {
+  if (!isLine(node)) return delta;
+  if (computeStyle(node).whiteSpace.startsWith('pre') || !deltaEndsWith(delta, '\n')) {
     delta.insert('\n');
   }
   return delta;
@@ -199,7 +208,7 @@ function matchNewline(node, delta) {
 
 function matchSpacing(node, delta) {
   if (node.nextElementSibling != null &&
-      node.nextElementSibling.offsetTop > node.offsetTop + node.offsetHeight &&
+      node.nextElementSibling.offsetTop > node.offsetTop + node.offsetHeight*1.4 &&
       !deltaEndsWith(delta, '\n\n')) {
     delta.insert('\n');
   }
@@ -208,14 +217,14 @@ function matchSpacing(node, delta) {
 
 function matchText(node, delta) {
   let text = node.data;
-  if (computeStyle(node.parentNode).whiteSpace.slice(0, 3) === 'pre') {
+  if (!computeStyle(node.parentNode).whiteSpace.startsWith('pre')) {
     text = text.replace(/\s\s+/g, ' ');
-  }
-  if (node.previousSibling == null || isLine(node.previousSibling)) {
-    text = text.replace(/^\s+/, '');
-  }
-  if (node.nextSibling == null || isLine(node.nextSibling)) {
-    text = text.replace(/\s+$/, '');
+    if (node.previousSibling == null || isLine(node.previousSibling)) {
+      text = text.replace(/^\s+/, '');
+    }
+    if (node.nextSibling == null || isLine(node.nextSibling)) {
+      text = text.replace(/\s+$/, '');
+    }
   }
   return delta.insert(text);
 }

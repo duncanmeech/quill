@@ -1,13 +1,13 @@
-import 'quill/core/polyfill';
+import './polyfill';
 import Delta from 'rich-text/lib/delta';
-import Editor from 'quill/core/editor';
-import Emitter from 'quill/core/emitter';
-import Module from 'quill/core/module';
+import Editor from './editor';
+import Emitter from './emitter';
+import Module from './module';
 import Parchment from 'parchment';
-import Selection, { Range } from 'quill/core/selection';
+import Selection, { Range } from './selection';
 import extend from 'extend';
-import logger from 'quill/core/logger';
-import Theme from 'quill/core/theme';
+import logger from './logger';
+import Theme from './theme';
 
 let debug = logger('quill');
 
@@ -26,9 +26,15 @@ class Quill {
 
   static register(path, target, overwrite = false) {
     if (typeof path === 'object') {
-      Object.keys(path).forEach((key) => {
-        this.register(key, path[key], target);
-      });
+      let name = path.attrName || path.blotName;
+      if (typeof name === 'string') {
+        // register(Blot | Attributor, overwrite)
+        this.register('formats/' + name, path, target);
+      } else {
+        Object.keys(path).forEach((key) => {
+          this.register(key, path[key], target);
+        });
+      }
     } else {
       if (this.imports[path] != null && !overwrite) {
         debug.warn(`Overwriting ${path} with`, target);
@@ -64,15 +70,18 @@ class Quill {
     this.theme = new themeClass(this, options);
     this.keyboard = this.theme.addModule('keyboard');
     this.clipboard = this.theme.addModule('clipboard');
-    this.undoManager = this.theme.addModule('undo-manager');
+    this.history = this.theme.addModule('history');
     let contents = this.clipboard.convert(`<div class='ql-editor' style="white-space: normal;">${html}</div>`);
     this.setContents(contents);
-    this.undoManager.clear();
+    this.history.clear();
     if (options.readOnly) {
       this.disable();
     }
     if (options.placeholder) {
-      this.root.setAttribute('data-placeholder', options.placeholder);
+      this.root.dataset.placeholder = options.placeholder;
+    }
+    if (options.debug) {
+      Quill.debug(options.debug);
     }
     this.root.classList.toggle('ql-empty', this.getLength() <= 1);
     this.emitter.on(Emitter.events.TEXT_CHANGE, (delta) => {

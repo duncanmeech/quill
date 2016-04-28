@@ -1,8 +1,9 @@
-import Quill from 'quill/core';
-import Module from 'quill/core/module';
+import Parchment from 'parchment';
+import Quill from '../core/quill';
+import Module from '../core/module';
 
 
-class UndoManager extends Module {
+class History extends Module {
   constructor(quill, options) {
     super(quill, options);
     this.lastRecorded = 0;
@@ -29,6 +30,7 @@ class UndoManager extends Module {
     this.ignoreChange = false;
     let index = getLastChangeIndex(delta[source]);
     this.quill.setSelection(index);
+    this.quill.selection.scrollIntoView();
     this.stack[dest].push(delta);
   }
 
@@ -76,28 +78,37 @@ class UndoManager extends Module {
     this.change('undo', 'redo');
   }
 }
-UndoManager.DEFAULTS = {
+History.DEFAULTS = {
   delay: 1000,
   maxStack: 100,
   userOnly: false
 };
 
+function endsWithNewlineChange(delta) {
+  let lastOp = delta.ops[delta.ops.length - 1];
+  if (lastOp == null) return false;
+  if (lastOp.insert != null) {
+    return typeof lastOp.insert === 'string' && lastOp.insert.endsWith('\n');
+  }
+  if (lastOp.attributes != null) {
+    return Object.keys(lastOp.attributes).some(function(attr) {
+      return Parchment.query(attr, Parchment.Scope.BLOCK) != null;
+    });
+  }
+  return false;
+}
+
 function getLastChangeIndex(delta) {
-  let index = 0, lastIndex = 0;
-  delta.ops.forEach(function(op) {
-    if (op.insert != null) {
-      lastIndex = Math.max(index + (op.insert.length || 1), lastIndex);
-    } else if (op["delete"] != null) {
-      lastIndex = Math.max(index, lastIndex);
-    } else if (op.retain != null) {
-      if (op.attributes != null) {
-        lastIndex = Math.max(index + op.retain, lastIndex);
-      }
-      index += op.retain;
-    }
-  });
-  return lastIndex;
+  let deleteLength = delta.ops.reduce(function(length, op) {
+    length += (op.delete || 0);
+    return length;
+  }, 0);
+  let changeIndex = delta.length() - deleteLength;
+  if (endsWithNewlineChange(delta)) {
+    changeIndex -= 1;
+  }
+  return changeIndex;
 }
 
 
-export default UndoManager;
+export { History as default, getLastChangeIndex };

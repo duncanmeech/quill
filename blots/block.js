@@ -1,36 +1,50 @@
 import extend from 'extend';
 import Delta from 'rich-text/lib/delta';
 import Parchment from 'parchment';
-import BreakBlot from 'quill/blots/break';
+import BreakBlot from './break';
 
 
 const NEWLINE_LENGTH = 1;
 
 
-class EmbedBlock extends Parchment.Embed {
+class BlockEmbed extends Parchment.Embed {
   attach() {
     super.attach();
     this.attributes = new Parchment.Attributor.Store(this.domNode);
   }
 
   delta() {
-    return new Delta().insert(this.value()).insert('\n', this.attributes.values());
+    return new Delta().insert(this.value(), this.formats()).insert('\n', this.attributes.values());
+  }
+
+  formatAt(index, length, format, value) {
+    if (index + length === this.length()) {
+      let attribute = Parchment.query(format, Parchment.Scope.ATTRIBUTE);
+      if (attribute != null) {
+        this.attributes.attribute(attribute, value);
+      }
+      if (length <= 1) return;
+    }
+    this.format(format, value);
+  }
+
+  insertAt(index, value, def) {
+    if (typeof value === 'string' && value.startsWith('\n')) {
+      let block = Parchment.create('block');
+      this.parent.insertBefore(block, index === 0 ? this : this.next);
+      block.insertAt(0, value.slice(1));
+    }
   }
 
   length() {
     return super.length() + NEWLINE_LENGTH;
   }
 }
-EmbedBlock.scope = Parchment.Scope.BLOCK_BLOT;
-// It is important for cursor behavior EmbedBlocks use tags that are block level elements
+BlockEmbed.scope = Parchment.Scope.BLOCK_BLOT;
+// It is important for cursor behavior BlockEmbeds use tags that are block level elements
 
 
 class Block extends Parchment.Block {
-  constructor(domNode) {
-    super(domNode);
-    this.optimize();
-  }
-
   delta() {
     return this.descendants(Parchment.Leaf).reduce((delta, leaf) => {
       if (leaf.length() === 0) {
@@ -38,7 +52,7 @@ class Block extends Parchment.Block {
       } else {
         return delta.insert(leaf.value(), bubbleFormats(leaf));
       }
-    }, new Delta()).insert('\n', this.formats());
+    }, new Delta()).insert('\n', bubbleFormats(this));
   }
 
   formatAt(index, length, name, value) {
@@ -58,8 +72,8 @@ class Block extends Parchment.Block {
     let lines = value.split('\n');
     let text = lines.shift();
     if (text.length > 0) {
-      if (index < this.length() - 1) {
-        super.insertAt(index, text);
+      if (index < this.length() - 1 || this.children.tail == null) {
+        super.insertAt(Math.min(index, this.length() - 1), text);
       } else {
         this.children.tail.insertAt(this.children.tail.length(), text);
       }
@@ -71,11 +85,11 @@ class Block extends Parchment.Block {
   }
 
   insertBefore(blot, ref) {
-    if (this.children.head instanceof BreakBlot) {
-      if (ref === this.children.head) ref = null;
-      this.children.head.remove();
-    }
+    let head = this.children.head;
     super.insertBefore(blot, ref);
+    if (head instanceof BreakBlot) {
+      head.remove();
+    }
   }
 
   length() {
@@ -106,18 +120,16 @@ Block.childless = 'break';
 Block.tagName = 'P';
 
 
-function bubbleFormats(blot) {
-  if (blot == null) return {};
-  if (blot instanceof Block) return blot.formats();
-  let formats = typeof blot.formats === 'function' ? blot.formats() : {};
-  while (blot.parent != null && blot.parent.statics.scope === Parchment.Scope.INLINE_BLOT) {
-    blot = blot.parent;
-    if (typeof blot.formats === 'function') {
-      formats = extend(formats, blot.formats());
-    }
+function bubbleFormats(blot, formats = {}) {
+  if (blot == null) return formats;
+  if (typeof blot.formats === 'function') {
+    formats = extend(formats, blot.formats());
   }
-  return formats;
+  if (blot.parent == null || blot.parent.blotName == 'scroll' || blot.parent.statics.scope !== blot.statics.scope) {
+    return formats;
+  }
+  return bubbleFormats(blot.parent, formats);
 }
 
 
-export { bubbleFormats, EmbedBlock, Block as default };
+export { bubbleFormats, BlockEmbed, Block as default };

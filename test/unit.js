@@ -14,12 +14,13 @@ import './unit/formats/color';
 import './unit/formats/link';
 import './unit/formats/script';
 import './unit/formats/align';
+import './unit/formats/code';
 import './unit/formats/header';
 import './unit/formats/list';
 
 import './unit/modules/clipboard';
+import './unit/modules/history';
 import './unit/modules/toolbar';
-import './unit/modules/undo-manager';
 
 import './unit/themes/snow';
 

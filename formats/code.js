@@ -1,7 +1,7 @@
 import Delta from 'rich-text/lib/delta';
 import Parchment from 'parchment';
-import Block from 'quill/blots/block';
-import Inline from 'quill/blots/inline';
+import Block from '../blots/block';
+import Inline from '../blots/inline';
 
 
 class Code extends Inline {}
@@ -10,40 +10,34 @@ Code.tagName = 'CODE';
 
 
 class CodeBlock extends Block {
-  delta() {
-    return this.domNode.textContent.split('\n').reduce((delta, text) => {
-      return delta.insert(text).insert('\n', this.formats());
-    }, new Delta());
+  static formats(domNode) {
+    return true;
   }
 
-  format(name, value) {
-    if (name !== this.statics.blotName) return;
-    super.formatAt(name, value);
+  delta() {
+    let text = this.descendants(Parchment.Leaf).map(function(leaf) {
+      return leaf instanceof Parchment.Text ? leaf.value() : '';
+    }).join('');
+    return new Delta().insert(text).insert('\n', this.formats());
   }
 
   formatAt(index, length, name, value) {
-    if (name !== this.statics.blotName) return;
-    super.formatAt(index, length, name, value);
-  }
-
-  insertAt(index, value, def) {
-    if (def != null) return;  // Cannot insert embeds into code
-    if (index < this.length() - 1) {
-      let [child, offset] = this.children.find(index);
-      child.insertAt(offset, value);
-    } else {
-      this.children.tail.insertAt(this.children.tail.length(), value);
+    if (Parchment.query(name, Parchment.Scope.BLOCK) || name === this.statics.blotName) {
+      super.formatAt(index, length, name, value);
     }
   }
 
-  optimize(mutations) {
-    super.optimize(mutations);
-    let next = this.next;
-    if (next instanceof CodeBlock && next.prev === this) {
-      this.appendChild(Parchment.create('text', '\n'));
-      next.moveChildren(this);
-      next.remove();
-    }
+  replace(target) {
+    super.replace(target);
+    this.descendants(function(blot) {
+      return !(blot instanceof Parchment.Text);
+    }).forEach(function(blot) {
+      if (blot instanceof Parchment.Embed) {
+        blot.remove();
+      } else {
+        blot.unwrap();
+      }
+    });
   }
 }
 CodeBlock.blotName = 'code-block';

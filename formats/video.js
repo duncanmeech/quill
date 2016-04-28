@@ -1,18 +1,17 @@
-import { EmbedBlock } from 'quill/blots/block';
-import Link from 'quill/formats/link';
+import { BlockEmbed } from '../blots/block';
+import Link from '../formats/link';
 
 
-class Video extends EmbedBlock {
+class Video extends BlockEmbed {
   static create(value) {
     let node = super.create(value);
     node.setAttribute('src', this.sanitize(value));
     node.setAttribute('controls', true);
-    node.setAttribute('contenteditable', false);
     return node;
   }
 
   static formats(domNode) {
-    let formats = super.formats();
+    let formats = {};
     if (domNode.hasAttribute('height')) formats['height'] = domNode.getAttribute('height');
     if (domNode.hasAttribute('width')) formats['width'] = domNode.getAttribute('width');
     return formats;

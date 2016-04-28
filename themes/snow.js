@@ -1,9 +1,9 @@
-import Emitter from 'quill/core/emitter';
-import BaseTheme from 'quill/themes/base';
-import ColorPicker from 'quill/ui/color-picker';
-import IconPicker from 'quill/ui/icon-picker';
-import icons from 'quill/ui/icons';
-import Picker from 'quill/ui/picker';
+import Emitter from '../core/emitter';
+import BaseTheme from './base';
+import ColorPicker from '../ui/color-picker';
+import IconPicker from '../ui/icon-picker';
+import icons from '../ui/icons';
+import Picker from '../ui/picker';
 
 
 const COLORS = [
@@ -39,9 +39,7 @@ class SnowTheme extends BaseTheme {
           });
         }
         return new ColorPicker(select, icons[format]);
-      } else if (select.classList.contains('ql-font') ||
-                 select.classList.contains('ql-size') ||
-                 select.classList.contains('ql-header')) {
+      } else {
         return new Picker(select);
       }
     });

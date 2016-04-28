@@ -1,19 +1,13 @@
 import Parchment from 'parchment';
-import Emitter from 'quill/core/emitter';
-import BreakBlot from 'quill/blots/break';
-import Block, { EmbedBlock } from 'quill/blots/block';
-import CursorBlot from 'quill/blots/cursor';
+import Emitter from '../core/emitter';
+import BreakBlot from './break';
+import Block, { BlockEmbed } from './block';
+import CursorBlot from './cursor';
 
 
 function isLine(blot) {
-  return (blot instanceof Block || blot instanceof EmbedBlock);
+  return (blot instanceof Block || blot instanceof BlockEmbed);
 }
-
-
-const REQUIRED_TYPES = [
-  BreakBlot.blotName,
-  CursorBlot.blotName
-];
 
 
 class Scroll extends Parchment.Scroll {
@@ -21,17 +15,17 @@ class Scroll extends Parchment.Scroll {
     super(domNode);
     this.emitter = config.emitter;
     if (Array.isArray(config.whitelist)) {
-      this.whitelist = {};
-      config.whitelist.concat(REQUIRED_TYPES).forEach((name) => {
-        this.whitelist[name] = true;
-      });
+      this.whitelist = config.whitelist.reduce(function(whitelist, format) {
+        whitelist[format] = true;
+        return whitelist;
+      }, {});
     }
     this.optimize();
   }
 
   deleteAt(index, length) {
-    let [first, firstOffset] = this.children.find(index);
-    let [last, lastOffset] = this.children.find(index + length);
+    let [first, firstOffset] = this.line(index);
+    let [last, lastOffset] = this.line(index + length);
     super.deleteAt(index, length);
     if (last != null && first !== last && firstOffset > 0) {
       let lastChild = first.children.tail;
@@ -52,7 +46,7 @@ class Scroll extends Parchment.Scroll {
   }
 
   insertBefore(childBlot, refBlot) {
-    if (childBlot.scope & Parchment.Scope.INLINE) {
+    if (childBlot.statics.scope === Parchment.Scope.INLINE_BLOT) {
       let block = Parchment.create(Parchment.Scope.BLOCK);
       block.insertBefore(childBlot);
       childBlot = block;
@@ -68,9 +62,11 @@ class Scroll extends Parchment.Scroll {
     return this.descendants(isLine, index, length);
   }
 
-  optimize(mutations) {
+  optimize(mutations = []) {
     super.optimize(mutations);
-    this.emitter.emit(Emitter.events.SCROLL_OPTIMIZE);
+    if (mutations.length > 0) {
+      this.emitter.emit(Emitter.events.SCROLL_OPTIMIZE, mutations);
+    }
   }
 
   path(index) {
@@ -85,9 +81,9 @@ class Scroll extends Parchment.Scroll {
     if (!Array.isArray(mutations)) {
       mutations = this.observer.takeRecords();
     }
-    super.update(mutations);
+    super.update(mutations.concat([]));   // pass copy
     if (mutations.length > 0) {
-      this.emitter.emit(Emitter.events.SCROLL_UPDATE, source);
+      this.emitter.emit(Emitter.events.SCROLL_UPDATE, source, mutations);
     }
   }
 }

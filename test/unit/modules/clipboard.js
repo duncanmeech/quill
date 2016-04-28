@@ -1,6 +1,6 @@
 import Delta from 'rich-text/lib/delta';
-import { Range } from 'quill/core/selection';
-import Quill from 'quill/core';
+import { Range } from '../../../core/selection';
+import Quill from '../../../core';
 
 
 describe('Clipboard', function() {
@@ -81,9 +81,9 @@ describe('Clipboard', function() {
     });
 
     it('pre', function() {
-      let html = '<div style="whitespace: pre;"> 01 \n 23 </div>';
+      let html = '<div style="white-space: pre;"> 01 \n 23 </div>';
       let delta = this.clipboard.convert(html);
-      expect(delta).toEqual(new Delta().insert('01 \n 23'));
+      expect(delta).toEqual(new Delta().insert(' 01 \n 23 '));
     });
 
     it('embeds', function() {

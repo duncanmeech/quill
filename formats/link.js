@@ -1,4 +1,4 @@
-import Inline from 'quill/blots/inline';
+import Inline from '../blots/inline';
 
 
 class Link extends Inline {
@@ -11,11 +11,7 @@ class Link extends Inline {
   }
 
   static formats(domNode) {
-    let formats = super.formats(domNode);
-    if (domNode.hasAttribute('href')) {
-      formats[this.blotName] = domNode.getAttribute('href')
-    }
-    return formats;
+    return domNode.getAttribute('href');
   }
 
   static sanitize(url) {

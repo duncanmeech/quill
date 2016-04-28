@@ -2,11 +2,11 @@ import clone from 'clone';
 import equal from 'deep-equal';
 import Delta from 'rich-text/lib/delta';
 import Parchment from 'parchment';
-import Quill from 'quill/core';
-import logger from 'quill/core/logger';
-import Module from 'quill/core/module';
-import { Range } from 'quill/core/selection';
-import Block from 'quill/blots/block';
+import Quill from '../core/quill';
+import logger from '../core/logger';
+import Module from '../core/module';
+import { Range } from '../core/selection';
+import Block from '../blots/block';
 
 let debug = logger('quill:keyboard');
 
@@ -94,18 +94,7 @@ class Keyboard extends Module {
     let delta = new Delta()
       .retain(range.index)
       .insert('\n', lineFormats);
-    if (range.length === 0) {
-      let [line, offset] = this.quill.scroll.line(range.index);
-      // Browsers do not display a newline with just <pre>\n</pre>
-      if (line.statics.blotName === 'code-block' &&
-          offset >= line.length() - 1 &&
-          this.quill.getText(range.index - 1, 1) !== '\n') {
-        delta.insert('\n', lineFormats);
-        added += 1;
-      }
-    } else {
-      delta.delete(range.length);
-    }
+    delta.delete(range.length);
     this.quill.updateContents(delta, Quill.sources.USER);
     this.quill.setSelection(range.index + added, Quill.sources.SILENT);
     Object.keys(formats).forEach((name) => {

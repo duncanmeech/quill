@@ -1,10 +1,11 @@
 import Parchment from 'parchment';
-import Scroll from 'quill/blots/scroll';
+import Scroll from '../../../blots/scroll';
 
 
 describe('Block', function() {
   it('childless', function() {
     let block = Parchment.create('block');
+    block.optimize();
     expect(block.domNode).toEqualHTML('<br>');
   });
 

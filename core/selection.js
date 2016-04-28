@@ -1,8 +1,8 @@
 import Parchment from 'parchment';
 import equal from 'deep-equal';
-import BreakBlot from 'quill/blots/break';
-import Emitter from 'quill/core/emitter';
-import logger from 'quill/core/logger';
+import BreakBlot from '../blots/break';
+import Emitter from './emitter';
+import logger from './logger';
 
 let debug = logger('quill:selection');
 
@@ -58,6 +58,7 @@ class Selection {
       } else {
         blot.insertBefore(this.cursor, nativeRange.start.node);  // Should never happen
       }
+      this.cursor.attach();
     }
     this.cursor.format(format, value);
     this.scroll.optimize();
@@ -120,13 +121,8 @@ class Selection {
     if (selection == null || selection.rangeCount <= 0) return null;
     let nativeRange = selection.getRangeAt(0);
     if (nativeRange == null) return null;
-    if (nativeRange.startContainer !== this.root &&
-        !(nativeRange.startContainer.compareDocumentPosition(this.root) & Node.DOCUMENT_POSITION_CONTAINS)) {
-      return null;
-    }
-    if (!nativeRange.collapsed &&   // save a call to compareDocumentPosition
-        nativeRange.endContainer !== this.root &&
-        !(nativeRange.endContainer.compareDocumentPosition(this.root) & Node.DOCUMENT_POSITION_CONTAINS)) {
+    if (!contains(this.root, nativeRange.startContainer) ||
+        (!nativeRange.collapsed && !contains(this.root, nativeRange.endContainer))) {
       return null;
     }
     let range = {
@@ -180,22 +176,22 @@ class Selection {
     return document.activeElement === this.root;
   }
 
-  scrollIntoView() {
-    // Popvex, this is not helpful, ever
+  scrollIntoView(range = this.lastRange) {
+    // shift pages in popvex and should never be necessary
     return;
-
-    if (this.lastRange == null) return;
-    let bounds = this.getBounds(this.lastRange.index, this.lastRange.length);
+    if (range == null) return;
+    let bounds = this.getBounds(range.index, range.length);
     if (this.root.offsetHeight < bounds.bottom) {
-      let [line, offset] = this.scroll.line(this.lastRange.index + this.lastRange.length);
+      let [line, offset] = this.scroll.line(range.index + range.length);
       line.domNode.scrollIntoView(false);
     } else if (bounds.top < 0) {
-      let [line, offset] = this.scroll.line(this.lastRange.index);
+      let [line, offset] = this.scroll.line(range.index);
       line.domNode.scrollIntoView();
     }
   }
 
   setNativeRange(startNode, startOffset, endNode = startNode, endOffset = startOffset) {
+    debug.info('setNativeRange', startNode, startOffset, endNode, endOffset);
     let selection = document.getSelection();
     if (selection == null) return;
     if (startNode != null) {
@@ -218,12 +214,14 @@ class Selection {
   }
 
   setRange(range, source = Emitter.sources.API) {
+    debug.info('setRange', range);
     if (range != null) {
       let indexes = range.collapsed ? [range.index] : [range.index, range.index + range.length];
       let args = [];
-      indexes.map((index, i) => {
-        let [leaf, offset] = findLeaf(this.scroll, index);
-        args.push.apply(args, leaf.position(offset, i !== 0));
+      indexes.forEach((index, i) => {
+        let node, [leaf, offset] = findLeaf(this.scroll, index);
+        [node, offset] = leaf.position(offset, i !== 0);
+        args.push(node, offset);
       });
       this.setNativeRange(...args);
     } else {
@@ -248,6 +246,15 @@ class Selection {
   }
 }
 
+
+function contains(parent, descendant) {
+  // IE11 has bug with Text nodes
+  // https://connect.microsoft.com/IE/feedback/details/780874/node-contains-is-incorrect
+  if (descendant instanceof Text) {
+    descendant = descendant.parentNode;
+  }
+  return parent.contains(descendant);
+}
 
 function findLeaf(blot, index) {
   let path = blot.path(index);
